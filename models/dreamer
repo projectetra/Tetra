@@ -1,0 +1,222 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
+import numpy as np
+
+class CreativeGAN(nn.Module):
+    def __init__(self, config):
+        super(CreativeGAN, self).__init__()
+        self.latent_dim = config['latent_dim']
+        self.style_layers = config['style_layers']
+        self.creativity_factor = config['creativity_factor']
+        
+        # Generator Architecture
+        self.generator = nn.Sequential(
+            # Initial projection
+            nn.Linear(self.latent_dim, 512 * 4 * 4),
+            nn.LeakyReLU(0.2),
+            nn.BatchNorm1d(512 * 4 * 4),
+            
+            # Reshape
+            Lambda(lambda x: x.view(-1, 512, 4, 4)),
+            
+            # Upsampling layers
+            *[nn.Sequential(
+                nn.ConvTranspose2d(512 // (2**i), 512 // (2**(i+1)), 4, 2, 1),
+                nn.LeakyReLU(0.2),
+                nn.BatchNorm2d(512 // (2**(i+1))),
+                AdaIN(512 // (2**(i+1)))
+            ) for i in range(self.style_layers)],
+            
+            # Output layer
+            nn.Conv2d(512 // (2**self.style_layers), 3, 3, 1, 1),
+            nn.Tanh()
+        )
+        
+        # Style Mapping Network
+        self.style_mapping = nn.Sequential(
+            nn.Linear(self.latent_dim, 512),
+            nn.LeakyReLU(0.2),
+            nn.Linear(512, 512),
+            nn.LeakyReLU(0.2),
+            nn.Linear(512, self.style_layers * 512)
+        )
+        
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.Linear)):
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias.data, 0)
+
+class StoryGenerator:
+    def __init__(self, config):
+        self.model_type = "gpt2-medium"  # Base architecture
+        self.max_length = config.get('max_length', 1024)
+        self.temperature = config.get('temperature', 0.7)
+        self.top_p = config.get('top_p', 0.9)
+        self.repetition_penalty = config.get('repetition_penalty', 1.2)
+        
+        # Story-specific parameters
+        self.genre_embeddings = nn.Embedding(10, 768)  # 10 different genres
+        self.mood_embeddings = nn.Embedding(8, 768)   # 8 different moods
+        self.character_encoder = CharacterEncoder(
+            num_characters=50,
+            embedding_dim=768
+        )
+        
+        # Load pre-trained model
+        self.model = self._load_pretrained_model()
+        
+        # Add custom layers for story generation
+        self.story_specific_layers = nn.ModuleList([
+            PlotDevelopmentLayer(768),
+            CharacterArcLayer(768),
+            NarrativeConsistencyLayer(768)
+        ])
+
+class VisionTransformer(nn.Module):
+    def __init__(self, config):
+        super(VisionTransformer, self).__init__()
+        self.image_size = config['image_size']
+        self.patch_size = config['patch_size']
+        self.num_channels = config['num_channels']
+        self.num_heads = config['num_heads']
+        self.num_layers = config['num_layers']
+        self.hidden_dim = config['hidden_dim']
+        self.mlp_dim = config['mlp_dim']
+        
+        # Patch embedding
+        self.patch_embed = PatchEmbedding(
+            img_size=self.image_size,
+            patch_size=self.patch_size,
+            in_channels=self.num_channels,
+            embed_dim=self.hidden_dim
+        )
+        
+        # Position embedding
+        num_patches = (self.image_size // self.patch_size) ** 2
+        self.pos_embed = nn.Parameter(
+            torch.zeros(1, num_patches + 1, self.hidden_dim)
+        )
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, self.hidden_dim))
+        
+        # Transformer blocks
+        self.blocks = nn.ModuleList([
+            TransformerBlock(
+                dim=self.hidden_dim,
+                num_heads=self.num_heads,
+                mlp_dim=self.mlp_dim,
+                dropout=0.1
+            ) for _ in range(self.num_layers)
+        ])
+
+# Custom layers and utilities
+class AdaIN(nn.Module):
+    """Adaptive Instance Normalization layer"""
+    def __init__(self, num_features):
+        super(AdaIN, self).__init__()
+        self.norm = nn.InstanceNorm2d(num_features, affine=False)
+        self.fc = nn.Linear(512, num_features * 2)
+
+    def forward(self, x, style):
+        style = self.fc(style)
+        gamma, beta = style.chunk(2, dim=1)
+        gamma = gamma.unsqueeze(2).unsqueeze(3)
+        beta = beta.unsqueeze(2).unsqueeze(3)
+        out = self.norm(x)
+        return gamma * out + beta
+
+class PlotDevelopmentLayer(nn.Module):
+    """Handles narrative structure and plot progression"""
+    def __init__(self, hidden_dim):
+        super(PlotDevelopmentLayer, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.plot_states = ['setup', 'conflict', 'rising_action', 'climax', 'resolution']
+        
+        self.plot_tracker = nn.LSTM(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=2,
+            bidirectional=True
+        )
+        
+        self.plot_classifier = nn.Linear(hidden_dim * 2, len(self.plot_states))
+
+class NarrativeConsistencyLayer(nn.Module):
+    """Ensures consistency in story elements across generation"""
+    def __init__(self, hidden_dim):
+        super(NarrativeConsistencyLayer, self).__init__()
+        self.memory_key = nn.Linear(hidden_dim, hidden_dim)
+        self.memory_value = nn.Linear(hidden_dim, hidden_dim)
+        self.memory_query = nn.Linear(hidden_dim, hidden_dim)
+        
+        self.consistency_check = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
+        )
+
+# Training configurations
+CREATIVE_GAN_CONFIG = {
+    'latent_dim': 512,
+    'style_layers': 8,
+    'creativity_factor': 0.7,
+    'learning_rate': 0.0002,
+    'beta1': 0.5,
+    'beta2': 0.999,
+    'batch_size': 64,
+    'num_epochs': 500,
+    'n_critic': 5
+}
+
+STORY_GENERATOR_CONFIG = {
+    'max_length': 2048,
+    'temperature': 0.8,
+    'top_p': 0.95,
+    'repetition_penalty': 1.2,
+    'num_genres': 10,
+    'num_moods': 8,
+    'max_characters': 50,
+    'embedding_dim': 768,
+    'num_heads': 12,
+    'num_layers': 24
+}
+
+VISION_TRANSFORMER_CONFIG = {
+    'image_size': 256,
+    'patch_size': 16,
+    'num_channels': 3,
+    'num_heads': 16,
+    'num_layers': 24,
+    'hidden_dim': 1024,
+    'mlp_dim': 4096,
+    'dropout': 0.1,
+    'attention_dropout': 0.1
+}
+
+# Example usage
+def train_creative_gan(model, dataloader, config):
+    """Training loop for CreativeGAN"""
+    optimizer_g = torch.optim.Adam(
+        model.generator.parameters(),
+        lr=config['learning_rate'],
+        betas=(config['beta1'], config['beta2'])
+    )
+    
+    for epoch in range(config['num_epochs']):
+        for i, real_images in enumerate(dataloader):
+            batch_size = real_images.size(0)
+            
+            # Train Generator
+            noise = torch.randn(batch_size, config['latent_dim'])
+            fake_images = model.generator(noise)
+            
+            # Calculate losses and update
+            g_loss = calculate_generator_loss(fake_images)
+            g_loss.backward()
+            optimizer_g.step()
