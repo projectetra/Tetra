@@ -1,6 +1,9 @@
 # Tetra: Multi-Dimensional AI Framework 
 
+![welho_tetra_logo_simple_black_white_background_smooth_cross_sym_a692b029-9a56-48be-a1e1-396cc9cef185](https://github.com/user-attachments/assets/e4750284-b745-42b5-b21f-80a5c630d967)
+
 ## Overview
+
 Tetra is a innovative approach to artificial intelligence that embraces four distinct cognitive dimensions: Dreamer, Theorist, Pragmatist, and Analyst. Each dimension represents a unique aspect of AI thinking and problem-solving, creating a comprehensive framework for developing more nuanced and capable AI systems.
 
 ### Dimension Details
