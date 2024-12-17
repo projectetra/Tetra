@@ -1,6 +1,6 @@
 # Tetra: Multi-Dimensional AI Framework 
 
-![welho_tetra_logo_simple_black_white_background_smooth_cross_sym_a692b029-9a56-48be-a1e1-396cc9cef185](https://github.com/user-attachments/assets/e4750284-b745-42b5-b21f-80a5c630d967)
+![te](https://github.com/user-attachments/assets/717352a4-4e33-453a-a6df-628a080f9614)
 
 ## Overview
 
