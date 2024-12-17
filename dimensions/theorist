@@ -1,0 +1,63 @@
+# Theorist Dimension
+
+## Overview
+The Theorist dimension specializes in abstract reasoning, pattern understanding, and theoretical framework development.
+
+## Core Models
+
+### 1. Causal Inference Engine
+- **Purpose**: Discovers and validates causal relationships
+- **Architecture**: Bayesian network with structural equation modeling
+- **Applications**:
+  - Hypothesis testing
+  - Theory validation
+  - Relationship mapping
+
+### 2. Knowledge Graph System
+- **Purpose**: Connects and organizes concepts
+- **Architecture**: Graph neural network with attention mechanisms
+- **Applications**:
+  - Concept mapping
+  - Theory building
+  - Knowledge organization
+
+### 3. Reasoning Engine
+- **Purpose**: Logical deduction and inference
+- **Architecture**: Neuro-symbolic architecture
+- **Applications**:
+  - Theorem proving
+  - Logical analysis
+  - Concept validation
+
+## Implementation Guidelines
+
+### Model Configuration
+```yaml
+theorist:
+  causal_inference:
+    confidence_threshold: 0.95
+    max_depth: 5
+    pruning_factor: 0.3
+  
+  knowledge_graph:
+    embedding_dim: 256
+    num_relations: 50
+    attention_heads: 4
+  
+  reasoning_engine:
+    logic_type: "first_order"
+    max_steps: 100
+    certainty_threshold: 0.8
+```
+
+### Data Requirements
+- Structured knowledge bases
+- Logical propositions
+- Causal relationships
+- Academic papers and theories
+
+## Metrics
+- Logical Consistency Score
+- Theory Completeness
+- Validation Accuracy
+- Inference Speed
